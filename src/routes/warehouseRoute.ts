@@ -74,7 +74,7 @@ router.get('/:id/products', async (req, res) => {
   try {
     const warehouse: Warehouse | null = await prisma.warehouse.findUnique({
       where: { id: Number(id) },
-      include: { productStock: { include: { products: true } } },
+      include: { product: true },
     });
     const formattedWarehouse = warehouse
       ? [warehouse].map((wh) => ({

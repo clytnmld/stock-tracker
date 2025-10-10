@@ -1,6 +1,8 @@
 import express from 'express';
 import warehouseRoute from './routes/warehouseRoute';
 import productsRoute from './routes/productsRoute';
+import salesRoute from './routes/salesRoute';
+import purchaseRoute from './routes/purchaseRoute';
 
 const app = express();
 const port = 3000;
@@ -12,6 +14,8 @@ app.get('/', (req, res) => {
 });
 app.use('/warehouse', warehouseRoute);
 app.use('/products', productsRoute);
+app.use('/purchase', purchaseRoute);
+app.use('/sales', salesRoute);
 app.listen(port, () => {
   console.log(`http://localhost:${port}`);
 });

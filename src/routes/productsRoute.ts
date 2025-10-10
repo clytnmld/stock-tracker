@@ -29,7 +29,19 @@ router.get('/', async (req, res) => {
     const product = await prisma.products.findUnique({
       where: { id: Number(id) },
     });
-    res.json(product);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    const formattedProduct = {
+      ...product,
+      createdAt: moment(product.createdAt)
+        .tz('Asia/Jakarta')
+        .format('YYYY-MM-DD HH:mm:ss'),
+      updatedAt: moment(product.updatedAt)
+        .tz('Asia/Jakarta')
+        .format('YYYY-MM-DD HH:mm:ss'),
+    };
+    res.json(formattedProduct);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch products' });
   }
@@ -41,11 +53,19 @@ router.get('/:id', async (req, res) => {
     const product = await prisma.products.findUnique({
       where: { id: Number(id) },
     });
-    if (product) {
-      res.json(product);
-    } else {
-      res.status(404).json({ error: 'Product not found' });
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
     }
+    const formattedProduct = {
+      ...product,
+      createdAt: moment(product.createdAt)
+        .tz('Asia/Jakarta')
+        .format('YYYY-MM-DD HH:mm:ss'),
+      updatedAt: moment(product.updatedAt)
+        .tz('Asia/Jakarta')
+        .format('YYYY-MM-DD HH:mm:ss'),
+    };
+    res.json(formattedProduct);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch product' });
   }
@@ -55,8 +75,9 @@ router.post('/', async (req, res) => {
   const { name, price, stock, warehouseId } = req.body as Product;
   const priceNum = Number(price);
   const stockNum = Number(stock);
+  const warehouseNum = Number(warehouseId);
   try {
-    if (!name || price == null || stock == null) {
+    if (!name || price == null || stock == null || !warehouseId) {
       return res
         .status(400)
         .json({ error: 'Name, price and stock are required' });
@@ -70,10 +91,10 @@ router.post('/', async (req, res) => {
     if (isNaN(stockNum)) {
       return res.status(403).json({ error: 'stock need to be number' });
     }
-    if (price < 0) {
+    if (priceNum < 0) {
       return res.status(400).json({ error: 'Price must be a positive number' });
     }
-    if (stock < 0) {
+    if (stockNum < 0) {
       return res.status(400).json({ error: 'stock must be a positive number' });
     }
     const newProduct = await prisma.products.create({
@@ -81,13 +102,7 @@ router.post('/', async (req, res) => {
         name,
         price: priceNum,
         stock: stockNum,
-        warehouse: {
-          create: {
-            warehouse: {
-              connect: { id: warehouseId },
-            },
-          },
-        },
+        warehouseId: warehouseNum,
       },
     });
     await prisma.warehouse.update({
@@ -110,6 +125,74 @@ router.post('/', async (req, res) => {
     res.status(201).json(formattedProduct);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create product' });
+  }
+});
+
+router.put('/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, price, stock, warehouseId } = req.body as Product;
+  const priceNum = Number(price);
+  const stockNum = Number(stock);
+  const warehouseNum = Number(warehouseId);
+  try {
+    const existingProduct = await prisma.products.findUnique({
+      where: { id: Number(id) },
+    });
+    if (!existingProduct) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    if (!name || price == null || stock == null || !warehouseNum) {
+      return res
+        .status(400)
+        .json({ error: 'Name, price and stock are required' });
+    }
+    if (typeof name !== 'string') {
+      return res.status(400).json({ error: 'Name need to be string' });
+    }
+    if (isNaN(priceNum)) {
+      return res.status(403).json({ error: 'Price need to be number' });
+    }
+    if (isNaN(stockNum)) {
+      return res.status(403).json({ error: 'stock need to be number' });
+    }
+    if (priceNum < 0) {
+      return res.status(400).json({ error: 'Price must be a positive number' });
+    }
+    if (stockNum < 0) {
+      return res.status(400).json({ error: 'stock must be a positive number' });
+    }
+    const updatedProduct = await prisma.products.update({
+      where: { id: Number(id) },
+      data: {
+        name: name,
+        price: priceNum,
+        stock: stockNum,
+        warehouseId: warehouseNum,
+      },
+    });
+    if (stockNum !== existingProduct.stock) {
+      const stockDifference = stockNum - existingProduct.stock;
+      await prisma.warehouse.update({
+        where: { id: warehouseNum },
+        data: {
+          totalStock: {
+            increment: stockDifference,
+          },
+        },
+      });
+    }
+    const formattedProduct = {
+      ...updatedProduct,
+      createdAt: moment(updatedProduct.createdAt)
+        .tz('Asia/Jakarta')
+        .format('YYYY-MM-DD HH:mm:ss'),
+      updatedAt: moment(updatedProduct.updatedAt)
+        .tz('Asia/Jakarta')
+        .format('YYYY-MM-DD HH:mm:ss'),
+    };
+    res.json(formattedProduct);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update product' });
   }
 });
 
