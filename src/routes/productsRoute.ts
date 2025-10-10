@@ -144,7 +144,7 @@ router.put('/:id', async (req, res) => {
     if (!name || price == null || stock == null || !warehouseNum) {
       return res
         .status(400)
-        .json({ error: 'Name, price and stock are required' });
+        .json({ error: 'Name, price, stock and warehouseId are required' });
     }
     if (typeof name !== 'string') {
       return res.status(400).json({ error: 'Name need to be string' });
@@ -170,13 +170,41 @@ router.put('/:id', async (req, res) => {
         warehouseId: warehouseNum,
       },
     });
-    if (stockNum !== existingProduct.stock) {
+    if (warehouseNum !== existingProduct.warehouseId) {
+      await prisma.warehouse.update({
+        where: { id: existingProduct.warehouseId },
+        data: {
+          totalStock: {
+            decrement: existingProduct.stock,
+          },
+        },
+      });
+      await prisma.warehouse.update({
+        where: { id: warehouseNum },
+        data: {
+          totalStock: {
+            increment: stockNum,
+          },
+        },
+      });
+    }
+    if (stockNum > existingProduct.stock) {
       const stockDifference = stockNum - existingProduct.stock;
       await prisma.warehouse.update({
         where: { id: warehouseNum },
         data: {
           totalStock: {
             increment: stockDifference,
+          },
+        },
+      });
+    } else if (stockNum < existingProduct.stock) {
+      const stockDifference = existingProduct.stock - stockNum;
+      await prisma.warehouse.update({
+        where: { id: warehouseNum },
+        data: {
+          totalStock: {
+            decrement: stockDifference,
           },
         },
       });
