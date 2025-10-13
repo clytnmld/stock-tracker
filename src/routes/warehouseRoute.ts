@@ -115,4 +115,75 @@ router.post('/', async (req, res) => {
   }
 });
 
+router.put('/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name } = req.body as Warehouse;
+  try {
+    const warehouse: Warehouse | null = await prisma.warehouse.findUnique({
+      where: { id: Number(id) },
+    });
+    if (!warehouse) {
+      return res.status(404).json({ error: 'Warehouse not found' });
+    }
+    if (!name) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+    if (typeof name !== 'string') {
+      return res.status(400).json({ error: 'Name must be a string' });
+    }
+    const updatedWarehouse = await prisma.warehouse.update({
+      where: { id: Number(id) },
+      data: {
+        name,
+        updatedAt: new Date(),
+      },
+    });
+    res.json(updatedWarehouse);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update warehouse' });
+  }
+});
+
+router.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const warehouse = await prisma.warehouse.findUnique({
+      where: { id: Number(id) },
+    });
+    if (!warehouse) {
+      return res.status(404).json({ error: 'Warehouse not found' });
+    }
+    if (warehouse.totalStock > 0) {
+      return res
+        .status(400)
+        .json({
+          error:
+            'Cannot delete warehouse with existing stock please delete the product that still exist in this warehouse first',
+        });
+    }
+    const deleteWarehouse = await prisma.warehouse.update({
+      where: { id: Number(id) },
+      data: {
+        isDeleted: true,
+        updatedAt: new Date(),
+      },
+    });
+    const formattedDeleteWarehouse = {
+      ...deleteWarehouse,
+      createdAt: moment(deleteWarehouse.createdAt)
+        .tz('Asia/Jakarta')
+        .format('YYYY-MM-DD HH:mm:ss'),
+      updatedAt: moment(deleteWarehouse.updatedAt)
+        .tz('Asia/Jakarta')
+        .format('YYYY-MM-DD HH:mm:ss'),
+    };
+    res.json({
+      message: 'Warehouse deleted successfully',
+      formattedDeleteWarehouse,
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete warehouse' });
+  }
+});
+
 export default router;

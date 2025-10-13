@@ -16,32 +16,44 @@ router.put('/:id', async (req, res) => {
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
-    const result = product.stock + valueNum;
-    const updatedProduct = await prisma.products.update({
-      where: { id: Number(id) },
-      data: {
-        stock: result,
-        updatedAt: new Date(),
-      },
-    });
-    const updateWarehouse = await prisma.warehouse.update({
-      where: { id: product.warehouseId },
-      data: {
-        totalStock: {
-          increment: valueNum,
+    if (valueNum < 0) {
+      return res.status(400).json({ error: 'value must be a positive number' });
+    }
+    if (product.isDeleted) {
+      return res.status(400).json({ error: 'Pruduct has been deleted' });
+    }
+    const transaction = await prisma.$transaction(async (tx) => {
+      const result = product.stock + valueNum;
+      const updatedProduct = await tx.products.update({
+        where: { id: Number(id) },
+        data: {
+          stock: result,
+          updatedAt: new Date(),
         },
-      },
+      });
+      const updateWarehouse = await tx.warehouse.update({
+        where: { id: product.warehouseId },
+        data: {
+          totalStock: {
+            increment: valueNum,
+          },
+        },
+      });
+      return { updatedProduct, updateWarehouse };
     });
     const formattedProduct = {
-      ...updatedProduct,
-      createdAt: moment(updatedProduct.createdAt)
+      ...transaction.updatedProduct,
+      createdAt: moment(transaction.updatedProduct.createdAt)
         .tz('Asia/Jakarta')
         .format('YYYY-MM-DD HH:mm:ss'),
-      updatedAt: moment(updatedProduct.updatedAt)
+      updatedAt: moment(transaction.updatedProduct.updatedAt)
         .tz('Asia/Jakarta')
         .format('YYYY-MM-DD HH:mm:ss'),
     };
-    res.json({ product: formattedProduct, warehouse: updateWarehouse });
+    res.json({
+      product: formattedProduct,
+      warehouse: transaction.updateWarehouse,
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update product' });
   }
