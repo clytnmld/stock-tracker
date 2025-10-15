@@ -2,6 +2,7 @@ import express from 'express';
 import prisma from '../prisma';
 import moment from 'moment-timezone';
 import { Product } from '../models/products';
+import { Prisma } from '@prisma/client';
 
 const router = express.Router();
 
@@ -72,18 +73,10 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { name, price, stock, warehouseId } = req.body as Product;
+  const { name, price, warehouses } = req.body as Product;
   const priceNum = Number(price);
-  const stockNum = Number(stock);
-  const warehouseNum = Number(warehouseId);
   try {
-    const deletedWarehouse = await prisma.warehouse.findUnique({
-      where: { id: warehouseId },
-    });
-    if (deletedWarehouse?.isDeleted) {
-      return res.status(404).json({ error: 'Warehouse no longer available' });
-    }
-    if (!name || price == null || stock == null || !warehouseId) {
+    if (!name || price == null) {
       return res
         .status(400)
         .json({ error: 'Name, price and stock are required' });
@@ -94,40 +87,80 @@ router.post('/', async (req, res) => {
     if (isNaN(priceNum)) {
       return res.status(403).json({ error: 'Price need to be number' });
     }
-    if (isNaN(stockNum)) {
-      return res.status(403).json({ error: 'stock need to be number' });
-    }
     if (priceNum < 0) {
       return res.status(400).json({ error: 'Price must be a positive number' });
     }
-    if (stockNum < 0) {
-      return res.status(400).json({ error: 'stock must be a positive number' });
+    if (warehouses && warehouses.length > 0) {
+      for (const { warehouseId, stock } of warehouses) {
+        const warehouse = await prisma.warehouse.findUnique({
+          where: { id: warehouseId },
+        });
+        if (!warehouse) {
+          return res
+            .status(404)
+            .json({ error: `Warehouse with ID ${warehouseId} not found` });
+        }
+        if (warehouse.isDeleted) {
+          return res.status(404).json({
+            error: `Warehouse with ID ${warehouseId} is no longer available`,
+          });
+        }
+        const stockNum = Number(stock);
+        if (isNaN(stockNum) || stockNum < 0) {
+          return res
+            .status(403)
+            .json({ error: 'Stock need to be a positive number' });
+        }
+      }
     }
-    const transaction = await prisma.$transaction(async (tx) => {
+    const createdProduct = await prisma.$transaction(async (tx) => {
+      // Build nested create array if warehouses exist
+      const productStockCreate =
+        warehouses && warehouses.length > 0
+          ? warehouses.map((w) => ({
+              stock: Number(w.stock),
+              warehouse: { connect: { id: Number(w.warehouseId) } },
+            }))
+          : undefined;
+
+      const productData: Prisma.ProductsCreateInput = {
+        name,
+        price: priceNum,
+        ...(productStockCreate
+          ? { productStock: { create: productStockCreate } }
+          : {}),
+      };
+
+      // create product (with created productStock rows)
       const newProduct = await tx.products.create({
-        data: {
-          name,
-          price: priceNum,
-          stock: stockNum,
-          warehouseId: warehouseNum,
+        data: productData,
+        include: {
+          productStock: true,
         },
       });
-      await tx.warehouse.update({
-        where: { id: warehouseId },
-        data: {
-          totalStock: {
-            increment: stockNum,
-          },
-        },
-      });
+
+      // update totalStock on warehouses (increment)
+      if (warehouses && warehouses.length > 0) {
+        for (const { warehouseId, stock } of warehouses) {
+          await tx.warehouse.update({
+            where: { id: Number(warehouseId) },
+            data: {
+              totalStock: {
+                increment: Number(stock),
+              },
+            },
+          });
+        }
+      }
+
       return newProduct;
     });
     const formattedProduct = {
-      ...transaction,
-      createdAt: moment(transaction.createdAt)
+      ...createdProduct,
+      createdAt: moment(createdProduct.createdAt)
         .tz('Asia/Jakarta')
         .format('YYYY-MM-DD HH:mm:ss'),
-      updatedAt: moment(transaction.updatedAt)
+      updatedAt: moment(createdProduct.updatedAt)
         .tz('Asia/Jakarta')
         .format('YYYY-MM-DD HH:mm:ss'),
     };
@@ -139,94 +172,127 @@ router.post('/', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, price, stock, warehouseId } = req.body as Product;
+  const { name, price, warehouses } = req.body;
   const priceNum = Number(price);
-  const stockNum = Number(stock);
-  const warehouseNum = Number(warehouseId);
+
   try {
     const existingProduct = await prisma.products.findUnique({
       where: { id: Number(id) },
+      include: {
+        productStock: true, // includes current stock info per warehouse
+      },
     });
-    const deletedWarehouse = await prisma.warehouse.findUnique({
-      where: { id: warehouseNum },
-    });
-    if (deletedWarehouse?.isDeleted) {
-      return res.status(404).json({ error: 'Warehouse no longer available' });
-    }
+
     if (!existingProduct) {
       return res.status(404).json({ error: 'Product not found' });
     }
-    if (!name || price == null || stock == null || !warehouseNum) {
-      return res
-        .status(400)
-        .json({ error: 'Name, price, stock and warehouseId are required' });
+
+    if (!name || price == null || !Array.isArray(warehouses)) {
+      return res.status(400).json({
+        error: 'Name, price, and warehouses array are required',
+      });
     }
-    if (typeof name !== 'string') {
-      return res.status(400).json({ error: 'Name need to be string' });
-    }
-    if (isNaN(priceNum)) {
-      return res.status(403).json({ error: 'Price need to be number' });
-    }
-    if (isNaN(stockNum)) {
-      return res.status(403).json({ error: 'stock need to be number' });
-    }
-    if (priceNum < 0) {
-      return res.status(400).json({ error: 'Price must be a positive number' });
-    }
-    if (stockNum < 0) {
-      return res.status(400).json({ error: 'stock must be a positive number' });
-    }
+
     const transaction = await prisma.$transaction(async (tx) => {
+      // 🧩 Update product info
       const updatedProduct = await tx.products.update({
         where: { id: Number(id) },
-        data: {
-          name: name,
-          price: priceNum,
-          stock: stockNum,
-          warehouseId: warehouseNum,
-        },
+        data: { name, price: priceNum },
       });
-      if (warehouseNum !== existingProduct.warehouseId) {
+
+      // 🧾 Current relations (from DB)
+      const currentRelations = existingProduct.productStock; // e.g. [{ warehouseId: 1, stock: 100 }]
+
+      // 🧩 Extract new warehouse IDs from request
+      const newWarehouseIds = warehouses.map((w) => Number(w.warehouseId));
+
+      // 🔥 1. Handle removed warehouses (those not in new array)
+      const removedRelations = currentRelations.filter(
+        (r) => !newWarehouseIds.includes(r.warehouseId)
+      );
+
+      for (const removed of removedRelations) {
+        // decrease totalStock by old stock
         await tx.warehouse.update({
-          where: { id: existingProduct.warehouseId },
+          where: { id: removed.warehouseId },
           data: {
-            totalStock: {
-              decrement: existingProduct.stock,
-            },
+            totalStock: { decrement: removed.stock },
           },
         });
-        await tx.warehouse.update({
-          where: { id: warehouseNum },
-          data: {
-            totalStock: {
-              increment: stockNum,
-            },
-          },
-        });
-      }
-      if (stockNum > existingProduct.stock) {
-        const stockDifference = stockNum - existingProduct.stock;
-        await tx.warehouse.update({
-          where: { id: warehouseNum },
-          data: {
-            totalStock: {
-              increment: stockDifference,
-            },
-          },
-        });
-      } else if (stockNum < existingProduct.stock) {
-        const stockDifference = existingProduct.stock - stockNum;
-        await tx.warehouse.update({
-          where: { id: warehouseNum },
-          data: {
-            totalStock: {
-              decrement: stockDifference,
+
+        // delete the join relation
+        await tx.productsWarehouse.delete({
+          where: {
+            productId_warehouseId: {
+              productId: updatedProduct.id,
+              warehouseId: removed.warehouseId,
             },
           },
         });
       }
-      return updatedProduct;
+
+      // 🔥 2. Handle updated or newly added warehouses
+      for (const w of warehouses) {
+        const warehouseNum = Number(w.warehouseId);
+        const stockNum = Number(w.stock);
+
+        const targetWarehouse = await tx.warehouse.findUnique({
+          where: { id: warehouseNum },
+        });
+
+        if (!targetWarehouse || targetWarehouse.isDeleted)
+          throw new Error(`Warehouse ${warehouseNum} not available`);
+
+        const existingRelation = currentRelations.find(
+          (r) => r.warehouseId === warehouseNum
+        );
+
+        let stockDifference = 0;
+
+        if (existingRelation) {
+          stockDifference = stockNum - existingRelation.stock;
+          await tx.productsWarehouse.update({
+            where: {
+              productId_warehouseId: {
+                productId: updatedProduct.id,
+                warehouseId: warehouseNum,
+              },
+            },
+            data: { stock: stockNum },
+          });
+        } else {
+          stockDifference = stockNum;
+          await tx.productsWarehouse.create({
+            data: {
+              productId: updatedProduct.id,
+              warehouseId: warehouseNum,
+              stock: stockNum,
+            },
+          });
+        }
+
+        // adjust totalStock
+        await tx.warehouse.update({
+          where: { id: warehouseNum },
+          data: {
+            totalStock: { increment: stockDifference },
+          },
+        });
+      }
+
+      const finalProduct = await tx.products.findUnique({
+        where: { id: updatedProduct.id },
+        include: { productStock: { include: { warehouse: true } } },
+      });
+
+      return finalProduct;
     });
+    if (!transaction) {
+      return res
+        .status(500)
+        .json({ error: 'Unexpected empty transaction result' });
+    }
+
     const formattedProduct = {
       ...transaction,
       createdAt: moment(transaction.createdAt)
@@ -236,40 +302,55 @@ router.put('/:id', async (req, res) => {
         .tz('Asia/Jakarta')
         .format('YYYY-MM-DD HH:mm:ss'),
     };
+
     res.json(formattedProduct);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Failed to update product' });
   }
 });
 
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
+
   try {
     const existingProduct = await prisma.products.findUnique({
       where: { id: Number(id) },
+      include: { productStock: true }, // include related warehouses
     });
+
     if (!existingProduct) {
       return res.status(404).json({ error: 'Product not found' });
     }
+
     if (existingProduct.isDeleted) {
-      return res.status(400).json({ error: 'Product has been deleted' });
+      return res
+        .status(400)
+        .json({ error: 'Product has already been deleted' });
     }
+
     const transaction = await prisma.$transaction(async (tx) => {
-      const deleteProduct = await tx.products.update({
+      // Soft delete the product
+      const deletedProduct = await tx.products.update({
         where: { id: Number(id) },
         data: { isDeleted: true },
       });
-      await tx.warehouse.update({
-        where: { id: existingProduct.warehouseId },
-        data: {
-          totalStock: {
-            decrement: existingProduct.stock,
+
+      // For each warehouse linked to this product, decrease total stock
+      for (const relation of existingProduct.productStock) {
+        await tx.warehouse.update({
+          where: { id: relation.warehouseId },
+          data: {
+            totalStock: {
+              decrement: relation.stock,
+            },
           },
-        },
-      });
-      return deleteProduct;
+        });
+      }
+      return deletedProduct;
     });
-    const Product = {
+
+    const formattedProduct = {
       ...transaction,
       createdAt: moment(transaction.createdAt)
         .tz('Asia/Jakarta')
@@ -278,8 +359,13 @@ router.delete('/:id', async (req, res) => {
         .tz('Asia/Jakarta')
         .format('YYYY-MM-DD HH:mm:ss'),
     };
-    res.json({ Product, message: 'Product deleted successfully' });
+
+    res.json({
+      product: formattedProduct,
+      message: 'Product deleted successfully',
+    });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Failed to delete product' });
   }
 });

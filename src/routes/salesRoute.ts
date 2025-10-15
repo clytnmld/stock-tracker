@@ -7,17 +7,28 @@ const router = express.Router();
 
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { value } = req.body;
+  const { value, warehouseId } = req.body;
   const valueNum = Number(value);
+  const warehouseNum = Number(warehouseId);
   try {
-    const product: Product | null = await prisma.products.findUnique({
+    const product = await prisma.products.findUnique({
       where: { id: Number(id) },
+      include: { productStock: true },
     });
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
-    if (product.stock < valueNum) {
-      return res.status(400).json({ error: 'stock not enough to do sales' });
+    if (!warehouseNum) {
+      return res.status(400).json({ error: 'warehouseId is required' });
+    }
+    const relation = product.productStock.find(
+      (rel) => rel.warehouseId === warehouseNum
+    );
+    if (!relation) {
+      return res.status(404).json({ error: 'Warehouse relation not found' });
+    }
+    if (relation.stock < valueNum) {
+      return res.status(400).json({ error: 'Stock not enough to do sales' });
     }
     if (valueNum < 0) {
       return res.status(400).json({ error: 'value must be a positive number' });
@@ -26,39 +37,35 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ error: 'Pruduct has been deleted' });
     }
     const transaction = await prisma.$transaction(async (tx) => {
-      const result = product.stock - valueNum;
-      const updatedProduct = await prisma.products.update({
-        where: { id: Number(id) },
-        data: {
-          stock: result,
-          updatedAt: new Date(),
-        },
-      });
-      const updateWarehouse = await prisma.warehouse.update({
-        where: { id: product.warehouseId },
-        data: {
-          totalStock: {
-            decrement: valueNum,
+      const updatedRelation = await tx.productsWarehouse.update({
+        where: {
+          productId_warehouseId: {
+            productId: Number(id),
+            warehouseId: warehouseNum,
           },
         },
+        data: {
+          stock: relation.stock - valueNum,
+        },
       });
-      return { updatedProduct, updateWarehouse };
+      const updatedWarehouse = await tx.warehouse.update({
+        where: { id: warehouseNum },
+        data: { totalStock: { decrement: valueNum } },
+      });
+      return { updatedRelation, updatedWarehouse };
     });
     const formattedProduct = {
-      ...transaction.updatedProduct,
-      createdAt: moment(transaction.updatedProduct.createdAt)
+      ...product,
+      createdAt: moment(product.createdAt)
         .tz('Asia/Jakarta')
         .format('YYYY-MM-DD HH:mm:ss'),
-      updatedAt: moment(transaction.updatedProduct.updatedAt)
+      updatedAt: moment(product.updatedAt)
         .tz('Asia/Jakarta')
         .format('YYYY-MM-DD HH:mm:ss'),
     };
-    res.json({
-      product: formattedProduct,
-      warehouse: transaction.updateWarehouse,
-    });
+    res.json({ ...formattedProduct, transaction });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update product' });
+    res.status(500).json({ error: 'Failed to process sales' });
   }
 });
 

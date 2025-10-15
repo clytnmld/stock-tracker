@@ -74,7 +74,7 @@ router.get('/:id/products', async (req, res) => {
   try {
     const warehouse: Warehouse | null = await prisma.warehouse.findUnique({
       where: { id: Number(id) },
-      include: { product: true },
+      include: { productStocks: { include: { products: true } } },
     });
     const formattedWarehouse = warehouse
       ? [warehouse].map((wh) => ({
@@ -154,12 +154,10 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Warehouse not found' });
     }
     if (warehouse.totalStock > 0) {
-      return res
-        .status(400)
-        .json({
-          error:
-            'Cannot delete warehouse with existing stock please delete the product that still exist in this warehouse first',
-        });
+      return res.status(400).json({
+        error:
+          'Cannot delete warehouse with existing stock please delete the product that still exist in this warehouse first',
+      });
     }
     const deleteWarehouse = await prisma.warehouse.update({
       where: { id: Number(id) },
