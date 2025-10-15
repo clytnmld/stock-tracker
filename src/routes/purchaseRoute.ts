@@ -21,7 +21,7 @@ router.put('/:id', async (req, res) => {
 
     const product = await prisma.products.findUnique({
       where: { id: Number(id) },
-      include: { productStock: true }, // so we can locate existing relation(s)
+      include: { productStock: true },
     });
 
     if (!product) return res.status(404).json({ error: 'Product not found' });
@@ -29,7 +29,6 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ error: 'Product has been deleted' });
 
     const transaction = await prisma.$transaction(async (tx) => {
-      // find existing relation for this warehouse
       const existingRelation = await tx.productsWarehouse.findUnique({
         where: {
           productId_warehouseId: {
@@ -40,7 +39,6 @@ router.put('/:id', async (req, res) => {
       });
 
       if (existingRelation) {
-        // update the product–warehouse stock
         const updatedRelation = await tx.productsWarehouse.update({
           where: {
             productId_warehouseId: {

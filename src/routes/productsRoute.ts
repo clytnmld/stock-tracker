@@ -114,7 +114,6 @@ router.post('/', async (req, res) => {
       }
     }
     const createdProduct = await prisma.$transaction(async (tx) => {
-      // Build nested create array if warehouses exist
       const productStockCreate =
         warehouses && warehouses.length > 0
           ? warehouses.map((w) => ({
@@ -131,7 +130,6 @@ router.post('/', async (req, res) => {
           : {}),
       };
 
-      // create product (with created productStock rows)
       const newProduct = await tx.products.create({
         data: productData,
         include: {
@@ -139,7 +137,6 @@ router.post('/', async (req, res) => {
         },
       });
 
-      // update totalStock on warehouses (increment)
       if (warehouses && warehouses.length > 0) {
         for (const { warehouseId, stock } of warehouses) {
           await tx.warehouse.update({
@@ -179,7 +176,7 @@ router.put('/:id', async (req, res) => {
     const existingProduct = await prisma.products.findUnique({
       where: { id: Number(id) },
       include: {
-        productStock: true, // includes current stock info per warehouse
+        productStock: true,
       },
     });
 
@@ -194,25 +191,20 @@ router.put('/:id', async (req, res) => {
     }
 
     const transaction = await prisma.$transaction(async (tx) => {
-      // 🧩 Update product info
       const updatedProduct = await tx.products.update({
         where: { id: Number(id) },
         data: { name, price: priceNum },
       });
 
-      // 🧾 Current relations (from DB)
-      const currentRelations = existingProduct.productStock; // e.g. [{ warehouseId: 1, stock: 100 }]
+      const currentRelations = existingProduct.productStock;
 
-      // 🧩 Extract new warehouse IDs from request
       const newWarehouseIds = warehouses.map((w) => Number(w.warehouseId));
 
-      // 🔥 1. Handle removed warehouses (those not in new array)
       const removedRelations = currentRelations.filter(
         (r) => !newWarehouseIds.includes(r.warehouseId)
       );
 
       for (const removed of removedRelations) {
-        // decrease totalStock by old stock
         await tx.warehouse.update({
           where: { id: removed.warehouseId },
           data: {
@@ -220,7 +212,6 @@ router.put('/:id', async (req, res) => {
           },
         });
 
-        // delete the join relation
         await tx.productsWarehouse.delete({
           where: {
             productId_warehouseId: {
@@ -231,7 +222,6 @@ router.put('/:id', async (req, res) => {
         });
       }
 
-      // 🔥 2. Handle updated or newly added warehouses
       for (const w of warehouses) {
         const warehouseNum = Number(w.warehouseId);
         const stockNum = Number(w.stock);
@@ -271,7 +261,6 @@ router.put('/:id', async (req, res) => {
           });
         }
 
-        // adjust totalStock
         await tx.warehouse.update({
           where: { id: warehouseNum },
           data: {
@@ -316,7 +305,7 @@ router.delete('/:id', async (req, res) => {
   try {
     const existingProduct = await prisma.products.findUnique({
       where: { id: Number(id) },
-      include: { productStock: true }, // include related warehouses
+      include: { productStock: true },
     });
 
     if (!existingProduct) {
@@ -330,13 +319,11 @@ router.delete('/:id', async (req, res) => {
     }
 
     const transaction = await prisma.$transaction(async (tx) => {
-      // Soft delete the product
       const deletedProduct = await tx.products.update({
         where: { id: Number(id) },
         data: { isDeleted: true },
       });
 
-      // For each warehouse linked to this product, decrease total stock
       for (const relation of existingProduct.productStock) {
         await tx.warehouse.update({
           where: { id: relation.warehouseId },
