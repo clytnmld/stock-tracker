@@ -1,7 +1,7 @@
 import express from 'express';
 import prisma from '../prisma';
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
+import session from 'express-session';
 import { Register, Login } from '../models/auth';
 
 const router = express.Router();
@@ -70,15 +70,12 @@ router.post('/login', async (req, res) => {
     if (!passwordMatch) {
       return res.status(400).json({ error: 'Invalid email or password' });
     }
-    const token = jwt.sign(
-      { id: user.id, email: user.email, name: user.name },
-      secret as string,
-      { expiresIn: '10s' }
-    );
-    res.cookie('token', token, {
-      httpOnly: true,
-    });
-    res.json({ message: 'Login successful', token });
+    req.session.user = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+    };
+    res.json({ message: 'Login successful' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to login' });
   }
