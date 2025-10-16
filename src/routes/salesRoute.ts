@@ -37,7 +37,7 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ error: 'Pruduct has been deleted' });
     }
     const transaction = await prisma.$transaction(async (tx) => {
-      const updatedRelation = await tx.productsWarehouse.update({
+      await tx.productsWarehouse.update({
         where: {
           productId_warehouseId: {
             productId: Number(id),
@@ -48,22 +48,34 @@ router.put('/:id', async (req, res) => {
           stock: relation.stock - valueNum,
         },
       });
-      const updatedWarehouse = await tx.warehouse.update({
+      await tx.warehouse.update({
         where: { id: warehouseNum },
         data: { totalStock: { decrement: valueNum } },
       });
-      return { updatedRelation, updatedWarehouse };
+      const createStockMovements = await tx.stockMovements.create({
+        data: {
+          productId: Number(id),
+          warehouseId: warehouseNum,
+          type: 'Sales',
+          amount: valueNum,
+        },
+        include: { products: true, warehouse: true },
+      });
+      return createStockMovements;
     });
-    const formattedProduct = {
-      ...product,
-      createdAt: moment(product.createdAt)
+    const formattedTransaction = {
+      ...transaction,
+      createdAt: moment(transaction.createdAt)
         .tz('Asia/Jakarta')
         .format('YYYY-MM-DD HH:mm:ss'),
-      updatedAt: moment(product.updatedAt)
+      updatedAt: moment(transaction.updatedAt)
         .tz('Asia/Jakarta')
         .format('YYYY-MM-DD HH:mm:ss'),
     };
-    res.json({ ...formattedProduct, transaction });
+    res.json({
+      message: 'Sales done successfully',
+      sales: formattedTransaction,
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to process sales' });
   }
