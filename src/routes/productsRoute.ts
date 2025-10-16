@@ -3,10 +3,11 @@ import prisma from '../prisma';
 import moment from 'moment-timezone';
 import { Product } from '../models/products';
 import { Prisma } from '@prisma/client';
+import { authorizedRoles } from '../middleware/jwtAuth';
 
 const router = express.Router();
 
-router.get('/all', async (req, res) => {
+router.get('/all', authorizedRoles('owner', 'manager'), async (req, res) => {
   try {
     const products = await prisma.products.findMany({});
     const formattedProducts = products.map((product) => ({
@@ -24,7 +25,7 @@ router.get('/all', async (req, res) => {
   }
 });
 
-router.get('/', async (req, res) => {
+router.get('/', authorizedRoles('owner', 'manager'), async (req, res) => {
   const { id } = req.query;
   try {
     const product = await prisma.products.findUnique({
@@ -48,7 +49,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', authorizedRoles('owner', 'manager'), async (req, res) => {
   const { id } = req.params;
   try {
     const product = await prisma.products.findUnique({
@@ -72,7 +73,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', authorizedRoles('owner', 'manager'), async (req, res) => {
   const { name, price, warehouses } = req.body as Product;
   const priceNum = Number(price);
   try {
@@ -167,7 +168,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', authorizedRoles('owner', 'manager'), async (req, res) => {
   const { id } = req.params;
   const { name, price, warehouses } = req.body;
   const priceNum = Number(price);
@@ -299,7 +300,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authorizedRoles('owner'), async (req, res) => {
   const { id } = req.params;
 
   try {

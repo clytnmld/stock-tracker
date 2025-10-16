@@ -1,25 +1,43 @@
 import express from 'express';
-import cookieParser from 'cookie-parser';
 import warehouseRoute from './routes/warehouseRoute';
 import productsRoute from './routes/productsRoute';
 import salesRoute from './routes/salesRoute';
 import purchaseRoute from './routes/purchaseRoute';
 import authRoute from './routes/authRoute';
-import { cookieJwtAuth } from './middleware/cookieJwtAuth';
+import { jwtAuth, authorizedRoles } from './middleware/jwtAuth';
 
 const app = express();
 const port = 3000;
 
 app.use(express.json());
-app.use(cookieParser());
 
 app.get('/', (req, res) => {
   res.send('Hello, World!');
 });
-app.use('/warehouse', cookieJwtAuth, warehouseRoute);
-app.use('/products', cookieJwtAuth, productsRoute);
-app.use('/purchase', cookieJwtAuth, purchaseRoute);
-app.use('/sales', cookieJwtAuth, salesRoute);
+app.use(
+  '/warehouse',
+  jwtAuth,
+  authorizedRoles('owner', 'manager'),
+  warehouseRoute
+);
+app.use(
+  '/products',
+  jwtAuth,
+  authorizedRoles('owner', 'manager'),
+  productsRoute
+);
+app.use(
+  '/purchase',
+  jwtAuth,
+  authorizedRoles('owner', 'manager', 'user'),
+  purchaseRoute
+);
+app.use(
+  '/sales',
+  jwtAuth,
+  authorizedRoles('owner', 'manager', 'user'),
+  salesRoute
+);
 app.use('/auth', authRoute);
 app.listen(port, () => {
   console.log(`http://localhost:${port}`);

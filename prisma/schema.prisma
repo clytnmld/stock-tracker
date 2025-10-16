@@ -45,7 +45,7 @@ model Users {
   name String
   email String @unique
   password String
-  role String @default("owner")
+  role String @default("user")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

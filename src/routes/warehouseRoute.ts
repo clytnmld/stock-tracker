@@ -2,10 +2,11 @@ import express from 'express';
 import prisma from '../prisma';
 import { Warehouse } from '../models/warehouse';
 import moment from 'moment-timezone';
+import { authorizedRoles } from '../middleware/jwtAuth';
 
 const router = express.Router();
 
-router.get('/all', async (req, res) => {
+router.get('/all', authorizedRoles('owner', 'manager'), async (req, res) => {
   try {
     const warehouse: Warehouse[] = await prisma.warehouse.findMany({});
     const formattedWarehouses = warehouse.map((wh) => ({
@@ -23,12 +24,15 @@ router.get('/all', async (req, res) => {
   }
 });
 
-router.get('/', async (req, res) => {
+router.get('/', authorizedRoles('owner', 'manager'), async (req, res) => {
   const { id } = req.query;
   try {
     const warehouse: Warehouse | null = await prisma.warehouse.findUnique({
       where: { id: Number(id) },
     });
+    if (!id) {
+      return res.status(400).json({ error: 'Warehouse id is required' });
+    }
     const formattedWarehouse = warehouse
       ? [warehouse].map((wh) => ({
           ...wh,
@@ -46,12 +50,15 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', authorizedRoles('owner', 'manager'), async (req, res) => {
   const { id } = req.params;
   try {
     const warehouse: Warehouse | null = await prisma.warehouse.findUnique({
       where: { id: Number(id) },
     });
+    if (!warehouse) {
+      return res.status(404).json({ error: 'Warehouse not found' });
+    }
     const formattedWarehouse = warehouse
       ? [warehouse].map((wh) => ({
           ...wh,
@@ -69,31 +76,35 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.get('/:id/products', async (req, res) => {
-  const { id } = req.params;
-  try {
-    const warehouse: Warehouse | null = await prisma.warehouse.findUnique({
-      where: { id: Number(id) },
-      include: { productStocks: { include: { products: true } } },
-    });
-    const formattedWarehouse = warehouse
-      ? [warehouse].map((wh) => ({
-          ...wh,
-          createdAt: moment(wh.createdAt)
-            .tz('Asia/Jakarta')
-            .format('YYYY-MM-DD HH:mm:ss'),
-          updatedAt: moment(wh.updatedAt)
-            .tz('Asia/Jakarta')
-            .format('YYYY-MM-DD HH:mm:ss'),
-        }))
-      : null;
-    res.json(formattedWarehouse);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch products for warehouse' });
+router.get(
+  '/:id/products',
+  authorizedRoles('owner', 'manager'),
+  async (req, res) => {
+    const { id } = req.params;
+    try {
+      const warehouse: Warehouse | null = await prisma.warehouse.findUnique({
+        where: { id: Number(id) },
+        include: { productStocks: { include: { products: true } } },
+      });
+      const formattedWarehouse = warehouse
+        ? [warehouse].map((wh) => ({
+            ...wh,
+            createdAt: moment(wh.createdAt)
+              .tz('Asia/Jakarta')
+              .format('YYYY-MM-DD HH:mm:ss'),
+            updatedAt: moment(wh.updatedAt)
+              .tz('Asia/Jakarta')
+              .format('YYYY-MM-DD HH:mm:ss'),
+          }))
+        : null;
+      res.json(formattedWarehouse);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch products for warehouse' });
+    }
   }
-});
+);
 
-router.post('/', async (req, res) => {
+router.post('/', authorizedRoles('owner'), async (req, res) => {
   const { name } = req.body as Warehouse;
   try {
     if (!name) {
@@ -115,7 +126,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', authorizedRoles('owner'), async (req, res) => {
   const { id } = req.params;
   const { name } = req.body as Warehouse;
   try {
@@ -144,7 +155,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authorizedRoles('owner'), async (req, res) => {
   const { id } = req.params;
   try {
     const warehouse = await prisma.warehouse.findUnique({
