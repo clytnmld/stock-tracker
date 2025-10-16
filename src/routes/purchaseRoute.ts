@@ -39,7 +39,7 @@ router.put('/:id', async (req, res) => {
       });
 
       if (existingRelation) {
-        const updatedRelation = await tx.productsWarehouse.update({
+        await tx.productsWarehouse.update({
           where: {
             productId_warehouseId: {
               productId: Number(id),
@@ -51,14 +51,12 @@ router.put('/:id', async (req, res) => {
           },
         });
 
-        const updatedWarehouse = await tx.warehouse.update({
+        await tx.warehouse.update({
           where: { id: warehouseNum },
           data: { totalStock: { increment: valueNum } },
         });
-
-        return { updatedRelation, updatedWarehouse };
       } else {
-        const createdRelation = await tx.productsWarehouse.create({
+        await tx.productsWarehouse.create({
           data: {
             productId: Number(id),
             warehouseId: warehouseNum,
@@ -66,16 +64,35 @@ router.put('/:id', async (req, res) => {
           },
         });
 
-        const updatedWarehouse = await tx.warehouse.update({
+        await tx.warehouse.update({
           where: { id: warehouseNum },
           data: { totalStock: { increment: valueNum } },
         });
-
-        return { createdRelation, updatedWarehouse };
       }
+      const createStockMovements = await tx.stockMovements.create({
+        data: {
+          productId: Number(id),
+          warehouseId: warehouseNum,
+          type: 'Purchase',
+          amount: valueNum,
+        },
+        include: { products: true, warehouse: true },
+      });
+      return createStockMovements;
     });
-
-    return res.json({ success: true, result: transaction });
+    const formattedTransaction = {
+      ...transaction,
+      createdAt: moment(transaction.createdAt)
+        .tz('Asia/Jakarta')
+        .format('YYYY-MM-DD HH:mm:ss'),
+      updatedAt: moment(transaction.updatedAt)
+        .tz('Asia/Jakarta')
+        .format('YYYY-MM-DD HH:mm:ss'),
+    };
+    res.json({
+      message: 'Sales done successfully',
+      purchase: formattedTransaction,
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Failed to process purchase' });
