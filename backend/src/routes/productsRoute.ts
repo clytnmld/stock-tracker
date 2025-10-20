@@ -9,7 +9,11 @@ const router = express.Router();
 
 router.get('/all', authorizedRoles('owner', 'manager'), async (req, res) => {
   try {
-    const products = await prisma.products.findMany({});
+    const products = await prisma.products.findMany({
+      include: {
+        productStock: { include: { warehouse: true } },
+      },
+    });
     const formattedProducts = products.map((product) => ({
       ...product,
       createdAt: moment(product.createdAt)
