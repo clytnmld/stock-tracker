@@ -58,6 +58,9 @@ router.get('/:id', authorizedRoles('owner', 'manager'), async (req, res) => {
   try {
     const product = await prisma.products.findUnique({
       where: { id: Number(id) },
+      include: {
+        productStock: { include: { warehouse: true } },
+      },
     });
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
@@ -97,17 +100,18 @@ router.post('/', authorizedRoles('owner', 'manager'), async (req, res) => {
     }
     if (warehouses && warehouses.length > 0) {
       for (const { warehouseId, stock } of warehouses) {
+        const warehouseNum = Number(warehouseId);
         const warehouse = await prisma.warehouse.findUnique({
-          where: { id: warehouseId },
+          where: { id: warehouseNum },
         });
         if (!warehouse) {
           return res
             .status(404)
-            .json({ error: `Warehouse with ID ${warehouseId} not found` });
+            .json({ error: `Warehouse with ID ${warehouseNum} not found` });
         }
         if (warehouse.isDeleted) {
           return res.status(404).json({
-            error: `Warehouse with ID ${warehouseId} is no longer available`,
+            error: `Warehouse with ID ${warehouseNum} is no longer available`,
           });
         }
         const stockNum = Number(stock);

@@ -10,8 +10,8 @@ import { ScoreBoard } from "./pages/scoreBoard.jsx";
 import { LearnLogin } from "./pages/login.jsx";
 import { PageNotFound } from "./pages/notFound.jsx";
 import { LearnHomepage, Homepage } from "./pages/homepage.jsx";
-import { LearnWarehouse, CreateWarehouse } from "./pages/warehouse.jsx";
-import { LearnProducts } from "./pages/products.jsx";
+import { LearnWarehouse, CreateWarehouse, EditWarehouse } from "./pages/warehouse.jsx";
+import { LearnProducts, CreateProducts, EditProducts } from "./pages/products.jsx";
 import { LearnPurchase } from "./pages/purchase.jsx";
 import { LearnSales } from "./pages/sales.jsx";
 
@@ -22,6 +22,11 @@ const router = createBrowserRouter([
     errorElement: <LearnLogin />,
   },
   {
+    path: "/warehouse/edit/:warehouseId",
+    element: <EditWarehouse />,
+    errorElement: <LearnLogin />,
+  },
+  {
     path: "/warehouse/create",
     element: <CreateWarehouse />,
     errorElement: <LearnLogin />,
@@ -29,6 +34,16 @@ const router = createBrowserRouter([
   {
     path: "/products",
     element: <LearnProducts />,
+    errorElement: <LearnLogin />,
+  },
+  {
+    path: "/products/create",
+    element: <CreateProducts />,
+    errorElement: <LearnLogin />,
+  },
+  {
+    path: "/products/edit/:productId",
+    element: <EditProducts />,
     errorElement: <LearnLogin />,
   },
   {
