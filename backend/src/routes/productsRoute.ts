@@ -1,13 +1,13 @@
-import express from 'express';
-import prisma from '../prisma';
-import moment from 'moment-timezone';
-import { Product } from '../models/products';
-import { Prisma } from '@prisma/client';
-import { authorizedRoles } from '../middleware/jwtAuth';
+import express from "express";
+import prisma from "../prisma";
+import moment from "moment-timezone";
+import { Product } from "../models/products";
+import { Prisma } from "@prisma/client";
+import { authorizedRoles } from "../middleware/jwtAuth";
 
 const router = express.Router();
 
-router.get('/all', authorizedRoles('owner', 'manager'), async (req, res) => {
+router.get("/all", authorizedRoles("owner", "manager"), async (req, res) => {
   try {
     const products = await prisma.products.findMany({
       include: {
@@ -17,43 +17,43 @@ router.get('/all', authorizedRoles('owner', 'manager'), async (req, res) => {
     const formattedProducts = products.map((product) => ({
       ...product,
       createdAt: moment(product.createdAt)
-        .tz('Asia/Jakarta')
-        .format('YYYY-MM-DD HH:mm:ss'),
+        .tz("Asia/Jakarta")
+        .format("YYYY-MM-DD HH:mm:ss"),
       updatedAt: moment(product.updatedAt)
-        .tz('Asia/Jakarta')
-        .format('YYYY-MM-DD HH:mm:ss'),
+        .tz("Asia/Jakarta")
+        .format("YYYY-MM-DD HH:mm:ss"),
     }));
     res.json(formattedProducts);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch products' });
+    res.status(500).json({ error: "Failed to fetch products" });
   }
 });
 
-router.get('/', authorizedRoles('owner', 'manager'), async (req, res) => {
+router.get("/", authorizedRoles("owner", "manager"), async (req, res) => {
   const { id } = req.query;
   try {
     const product = await prisma.products.findUnique({
       where: { id: Number(id) },
     });
     if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
+      return res.status(404).json({ error: "Product not found" });
     }
     const formattedProduct = {
       ...product,
       createdAt: moment(product.createdAt)
-        .tz('Asia/Jakarta')
-        .format('YYYY-MM-DD HH:mm:ss'),
+        .tz("Asia/Jakarta")
+        .format("YYYY-MM-DD HH:mm:ss"),
       updatedAt: moment(product.updatedAt)
-        .tz('Asia/Jakarta')
-        .format('YYYY-MM-DD HH:mm:ss'),
+        .tz("Asia/Jakarta")
+        .format("YYYY-MM-DD HH:mm:ss"),
     };
     res.json(formattedProduct);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch products' });
+    res.status(500).json({ error: "Failed to fetch products" });
   }
 });
 
-router.get('/:id', authorizedRoles('owner', 'manager'), async (req, res) => {
+router.get("/:id", authorizedRoles("owner", "manager"), async (req, res) => {
   const { id } = req.params;
   try {
     const product = await prisma.products.findUnique({
@@ -63,40 +63,40 @@ router.get('/:id', authorizedRoles('owner', 'manager'), async (req, res) => {
       },
     });
     if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
+      return res.status(404).json({ error: "Product not found" });
     }
     const formattedProduct = {
       ...product,
       createdAt: moment(product.createdAt)
-        .tz('Asia/Jakarta')
-        .format('YYYY-MM-DD HH:mm:ss'),
+        .tz("Asia/Jakarta")
+        .format("YYYY-MM-DD HH:mm:ss"),
       updatedAt: moment(product.updatedAt)
-        .tz('Asia/Jakarta')
-        .format('YYYY-MM-DD HH:mm:ss'),
+        .tz("Asia/Jakarta")
+        .format("YYYY-MM-DD HH:mm:ss"),
     };
     res.json(formattedProduct);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch product' });
+    res.status(500).json({ error: "Failed to fetch product" });
   }
 });
 
-router.post('/', authorizedRoles('owner', 'manager'), async (req, res) => {
+router.post("/", authorizedRoles("owner", "manager"), async (req, res) => {
   const { name, price, warehouses } = req.body as Product;
   const priceNum = Number(price);
   try {
     if (!name || price == null) {
       return res
         .status(400)
-        .json({ error: 'Name, price and stock are required' });
+        .json({ error: "Name, price and stock are required" });
     }
-    if (typeof name !== 'string') {
-      return res.status(400).json({ error: 'Name need to be string' });
+    if (typeof name !== "string") {
+      return res.status(400).json({ error: "Name need to be string" });
     }
     if (isNaN(priceNum)) {
-      return res.status(403).json({ error: 'Price need to be number' });
+      return res.status(403).json({ error: "Price need to be number" });
     }
     if (priceNum < 0) {
-      return res.status(400).json({ error: 'Price must be a positive number' });
+      return res.status(400).json({ error: "Price must be a positive number" });
     }
     if (warehouses && warehouses.length > 0) {
       for (const { warehouseId, stock } of warehouses) {
@@ -118,7 +118,7 @@ router.post('/', authorizedRoles('owner', 'manager'), async (req, res) => {
         if (isNaN(stockNum) || stockNum < 0) {
           return res
             .status(403)
-            .json({ error: 'Stock need to be a positive number' });
+            .json({ error: "Stock need to be a positive number" });
         }
       }
     }
@@ -164,19 +164,19 @@ router.post('/', authorizedRoles('owner', 'manager'), async (req, res) => {
     const formattedProduct = {
       ...createdProduct,
       createdAt: moment(createdProduct.createdAt)
-        .tz('Asia/Jakarta')
-        .format('YYYY-MM-DD HH:mm:ss'),
+        .tz("Asia/Jakarta")
+        .format("YYYY-MM-DD HH:mm:ss"),
       updatedAt: moment(createdProduct.updatedAt)
-        .tz('Asia/Jakarta')
-        .format('YYYY-MM-DD HH:mm:ss'),
+        .tz("Asia/Jakarta")
+        .format("YYYY-MM-DD HH:mm:ss"),
     };
     res.status(201).json(formattedProduct);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to create product' });
+    res.status(500).json({ error: "Failed to create product" });
   }
 });
 
-router.put('/:id', authorizedRoles('owner', 'manager'), async (req, res) => {
+router.put("/:id", authorizedRoles("owner", "manager"), async (req, res) => {
   const { id } = req.params;
   const { name, price, warehouses } = req.body;
   const priceNum = Number(price);
@@ -190,12 +190,12 @@ router.put('/:id', authorizedRoles('owner', 'manager'), async (req, res) => {
     });
 
     if (!existingProduct) {
-      return res.status(404).json({ error: 'Product not found' });
+      return res.status(404).json({ error: "Product not found" });
     }
 
     if (!name || price == null || !Array.isArray(warehouses)) {
       return res.status(400).json({
-        error: 'Name, price, and warehouses array are required',
+        error: "Name, price, and warehouses array are required",
       });
     }
 
@@ -210,7 +210,7 @@ router.put('/:id', authorizedRoles('owner', 'manager'), async (req, res) => {
       const newWarehouseIds = warehouses.map((w) => Number(w.warehouseId));
 
       const removedRelations = currentRelations.filter(
-        (r) => !newWarehouseIds.includes(r.warehouseId)
+        (r) => !newWarehouseIds.includes(r.warehouseId),
       );
 
       for (const removed of removedRelations) {
@@ -243,7 +243,7 @@ router.put('/:id', authorizedRoles('owner', 'manager'), async (req, res) => {
           throw new Error(`Warehouse ${warehouseNum} not available`);
 
         const existingRelation = currentRelations.find(
-          (r) => r.warehouseId === warehouseNum
+          (r) => r.warehouseId === warehouseNum,
         );
 
         let stockDifference = 0;
@@ -288,27 +288,27 @@ router.put('/:id', authorizedRoles('owner', 'manager'), async (req, res) => {
     if (!transaction) {
       return res
         .status(500)
-        .json({ error: 'Unexpected empty transaction result' });
+        .json({ error: "Unexpected empty transaction result" });
     }
 
     const formattedProduct = {
       ...transaction,
       createdAt: moment(transaction.createdAt)
-        .tz('Asia/Jakarta')
-        .format('YYYY-MM-DD HH:mm:ss'),
+        .tz("Asia/Jakarta")
+        .format("YYYY-MM-DD HH:mm:ss"),
       updatedAt: moment(transaction.updatedAt)
-        .tz('Asia/Jakarta')
-        .format('YYYY-MM-DD HH:mm:ss'),
+        .tz("Asia/Jakarta")
+        .format("YYYY-MM-DD HH:mm:ss"),
     };
 
     res.json(formattedProduct);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Failed to update product' });
+    res.status(500).json({ error: "Failed to update product" });
   }
 });
 
-router.delete('/:id', authorizedRoles('owner'), async (req, res) => {
+router.delete("/:id", authorizedRoles("owner"), async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -318,13 +318,13 @@ router.delete('/:id', authorizedRoles('owner'), async (req, res) => {
     });
 
     if (!existingProduct) {
-      return res.status(404).json({ error: 'Product not found' });
+      return res.status(404).json({ error: "Product not found" });
     }
 
     if (existingProduct.isDeleted) {
       return res
         .status(400)
-        .json({ error: 'Product has already been deleted' });
+        .json({ error: "Product has already been deleted" });
     }
 
     const transaction = await prisma.$transaction(async (tx) => {
@@ -349,20 +349,20 @@ router.delete('/:id', authorizedRoles('owner'), async (req, res) => {
     const formattedProduct = {
       ...transaction,
       createdAt: moment(transaction.createdAt)
-        .tz('Asia/Jakarta')
-        .format('YYYY-MM-DD HH:mm:ss'),
+        .tz("Asia/Jakarta")
+        .format("YYYY-MM-DD HH:mm:ss"),
       updatedAt: moment(transaction.updatedAt)
-        .tz('Asia/Jakarta')
-        .format('YYYY-MM-DD HH:mm:ss'),
+        .tz("Asia/Jakarta")
+        .format("YYYY-MM-DD HH:mm:ss"),
     };
 
     res.json({
       product: formattedProduct,
-      message: 'Product deleted successfully',
+      message: "Product deleted successfully",
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Failed to delete product' });
+    res.status(500).json({ error: "Failed to delete product" });
   }
 });
 

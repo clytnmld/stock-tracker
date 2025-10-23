@@ -1,6 +1,6 @@
 import ReactDOM from "react-dom/client";
 import React, { useEffect } from "react";
-import { Link, useNavigate} from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "../index.css";
 import { useParams } from "react-router-dom";
 
@@ -15,7 +15,7 @@ export function LearnWarehouse() {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${localStorage.getItem("token")}`
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         });
         if (!response.status === 200) {
@@ -38,9 +38,9 @@ export function LearnWarehouse() {
         method: "DELETE",
         headers: {
           "content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-      })
+      });
       if (response.status !== 200) {
         const errorData = await response.json();
         setIsError(errorData.error || "Something went wrong");
@@ -54,7 +54,7 @@ export function LearnWarehouse() {
     } catch (error) {
       console.error("Error:", error);
     }
-  }
+  };
 
   const fetchDeletedWarehouse = async () => {
     const fetchData = async () => {
@@ -63,7 +63,7 @@ export function LearnWarehouse() {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${localStorage.getItem("token")}`
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         });
         if (!response.status === 200) {
@@ -78,8 +78,7 @@ export function LearnWarehouse() {
       }
     };
     fetchData();
-  }
-
+  };
 
   return (
     <div style={{ textAlign: "center", marginTop: "20px" }}>
@@ -87,7 +86,9 @@ export function LearnWarehouse() {
       <ul>
         {warehouse.map((item) => (
           <li key={item.id}>
-            <span style={{margin: '1rem'}}>Name : {item.name} - Total stock: {item.totalStock}</span>
+            <span style={{ margin: "1rem" }}>
+              Name : {item.name} - Total stock: {item.totalStock}
+            </span>
             <Link to={`/warehouse/edit/${item.id}`}>
               <button>Edit</button>
             </Link>
@@ -96,10 +97,12 @@ export function LearnWarehouse() {
         ))}
       </ul>
       <Link to="/warehouse/create">
-        <button style={{marginBottom: '10px'}}>Create Warehouse</button>
+        <button style={{ marginBottom: "10px" }}>Create Warehouse</button>
       </Link>
       <br />
-      <button onClick={fetchDeletedWarehouse} style={{marginBottom: '10px'}}>View Deleted Warehouses</button>
+      <button onClick={fetchDeletedWarehouse} style={{ marginBottom: "10px" }}>
+        View Deleted Warehouses
+      </button>
       <Link to="/homepage">
         <button>Back to Homepage</button>
       </Link>
@@ -127,10 +130,10 @@ export function CreateWarehouse() {
         method: "POST",
         headers: {
           "content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify(warehouseName),
-      })
+      });
       if (response.status !== 201) {
         const errorData = await response.json();
         setIsError(errorData.error || "Something went wrong");
@@ -144,7 +147,7 @@ export function CreateWarehouse() {
     } catch (error) {
       console.error("Error:", error);
     }
-  }
+  };
   return (
     <div style={{ textAlign: "center", marginTop: "20px" }}>
       <h2>Create Warehouse</h2>
@@ -166,7 +169,7 @@ export function CreateWarehouse() {
 }
 
 export function EditWarehouse() {
-  const {warehouseId} =  useParams();
+  const { warehouseId } = useParams();
   const navigate = useNavigate();
   const warehouseFormat = {
     name: "",
@@ -183,13 +186,16 @@ export function EditWarehouse() {
   useEffect(() => {
     const fetchWarehouse = async () => {
       try {
-        const response = await fetch(BASE_URL_API + `warehouse/${warehouseId}`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${localStorage.getItem("token")}`
+        const response = await fetch(
+          BASE_URL_API + `warehouse/${warehouseId}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
           },
-        });
+        );
         if (response.status !== 200) {
           console.error("Failed to fetch warehouse data");
           return;
@@ -208,10 +214,10 @@ export function EditWarehouse() {
         method: "PUT",
         headers: {
           "content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify(warehouseName),
-      })
+      });
       if (response.status !== 200) {
         const errorData = await response.json();
         setIsError(errorData.error || "Something went wrong");
@@ -225,7 +231,7 @@ export function EditWarehouse() {
     } catch (error) {
       console.error("Error:", error);
     }
-  }
+  };
   return (
     <div style={{ textAlign: "center", marginTop: "20px" }}>
       <h2>Edit Warehouse</h2>
@@ -245,4 +251,3 @@ export function EditWarehouse() {
     </div>
   );
 }
-

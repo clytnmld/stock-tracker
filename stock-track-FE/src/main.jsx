@@ -10,10 +10,18 @@ import { ScoreBoard } from "./pages/scoreBoard.jsx";
 import { LearnLogin } from "./pages/login.jsx";
 import { PageNotFound } from "./pages/notFound.jsx";
 import { LearnHomepage, Homepage } from "./pages/homepage.jsx";
-import { LearnWarehouse, CreateWarehouse, EditWarehouse } from "./pages/warehouse.jsx";
-import { LearnProducts, CreateProducts, EditProducts } from "./pages/products.jsx";
-import { LearnPurchase } from "./pages/purchase.jsx";
-import { LearnSales } from "./pages/sales.jsx";
+import {
+  LearnWarehouse,
+  CreateWarehouse,
+  EditWarehouse,
+} from "./pages/warehouse.jsx";
+import {
+  LearnProducts,
+  CreateProducts,
+  EditProducts,
+} from "./pages/products.jsx";
+import { LearnPurchase, DoPurchase } from "./pages/purchase.jsx";
+import { LearnSales, DoSales } from "./pages/sales.jsx";
 
 const router = createBrowserRouter([
   {
@@ -52,8 +60,18 @@ const router = createBrowserRouter([
     errorElement: <LearnLogin />,
   },
   {
+    path: "/purchase/:productId",
+    element: <DoPurchase />,
+    errorElement: <LearnLogin />,
+  },
+  {
     path: "/sales",
     element: <LearnSales />,
+    errorElement: <LearnLogin />,
+  },
+  {
+    path: "/sales/:productId",
+    element: <DoSales />,
     errorElement: <LearnLogin />,
   },
   {
@@ -80,5 +98,5 @@ const router = createBrowserRouter([
 ]);
 
 createRoot(document.getElementById("root")).render(
-    <RouterProvider router={router} />
+  <RouterProvider router={router} />,
 );
