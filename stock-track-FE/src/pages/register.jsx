@@ -39,9 +39,8 @@ export function LearnRegister() {
         return;
       }
 
-      // success 🎉
       setError("");
-      navigate("/login"); // redirect to login page
+      navigate("/login");
     } catch (error) {
       console.error("Error:", error);
     }
