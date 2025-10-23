@@ -11,14 +11,23 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.9",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   },
   "dependencies": {
     "@prisma/client": "^6.17.0",
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "express": "^5.1.0",
-    "moment-timezone": "^0.6.0"
+    "jsonwebtoken": "^9.0.2",
+    "moment-timezone": "^0.6.0",
+    "set-cookie-parser": "^2.7.1"
   }
 }
