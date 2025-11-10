@@ -1,14 +1,16 @@
-import express from "express";
-import prisma from "../prisma";
-import moment from "moment-timezone";
-import { Product } from "../models/products";
-import { authorizedRoles } from "../middleware/jwtAuth";
+import express from 'express';
+import prisma from '../prisma';
+import moment from 'moment-timezone';
+import { Product } from '../models/products';
+import { authorizedRoles } from '../middleware/jwtAuth';
+import { formatDateToJakarta } from '../utils/dateFormat';
+import { salesPostValidation } from '../utils/salesValidation';
 
 const router = express.Router();
 
 router.put(
-  "/:id",
-  authorizedRoles("owner", "manager", "user"),
+  '/:id',
+  authorizedRoles('owner', 'manager', 'user'),
   async (req, res) => {
     const { id } = req.params;
     const { value, warehouseId } = req.body;
@@ -20,28 +22,21 @@ router.put(
         include: { productStock: true },
       });
       if (!product) {
-        return res.status(404).json({ error: "Product not found" });
-      }
-      if (!warehouseNum) {
-        return res.status(400).json({ error: "warehouseId is required" });
+        return res.status(404).json({ error: 'Product not found' });
       }
       const relation = product.productStock.find(
-        (rel) => rel.warehouseId === warehouseNum,
+        (rel) => rel.warehouseId === warehouseNum
       );
-      if (!relation) {
-        return res.status(404).json({ error: "Warehouse relation not found" });
+      const error = salesPostValidation(
+        product,
+        warehouseNum,
+        relation,
+        valueNum
+      );
+      if (error) {
+        return res.status(400).json({ error });
       }
-      if (relation.stock < valueNum) {
-        return res.status(400).json({ error: "Stock not enough to do sales" });
-      }
-      if (valueNum < 0) {
-        return res
-          .status(400)
-          .json({ error: "value must be a positive number" });
-      }
-      if (product.isDeleted) {
-        return res.status(400).json({ error: "Pruduct has been deleted" });
-      }
+      if (!relation) return;
       const transaction = await prisma.$transaction(async (tx) => {
         await tx.productsWarehouse.update({
           where: {
@@ -62,7 +57,7 @@ router.put(
           data: {
             productId: Number(id),
             warehouseId: warehouseNum,
-            type: "Sales",
+            type: 'Sales',
             amount: valueNum,
           },
           include: { products: true, warehouse: true },
@@ -71,21 +66,17 @@ router.put(
       });
       const formattedTransaction = {
         ...transaction,
-        createdAt: moment(transaction.createdAt)
-          .tz("Asia/Jakarta")
-          .format("YYYY-MM-DD HH:mm:ss"),
-        updatedAt: moment(transaction.updatedAt)
-          .tz("Asia/Jakarta")
-          .format("YYYY-MM-DD HH:mm:ss"),
+        createdAt: formatDateToJakarta(transaction.createdAt),
+        updatedAt: formatDateToJakarta(transaction.updatedAt),
       };
       res.json({
-        message: "Sales done successfully",
+        message: 'Sales done successfully',
         sales: formattedTransaction,
       });
     } catch (error) {
-      res.status(500).json({ error: "Failed to process sales" });
+      res.status(500).json({ error: 'Failed to process sales' });
     }
-  },
+  }
 );
 
 export default router;
