@@ -84,7 +84,7 @@ router.put(
         updatedAt: formatDateToJakarta(transaction.updatedAt),
       };
       res.json({
-        message: 'Sales done successfully',
+        message: 'Purchase done successfully',
         purchase: formattedTransaction,
       });
     } catch (err) {

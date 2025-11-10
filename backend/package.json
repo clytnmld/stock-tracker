@@ -4,6 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "npx vitest",
+    "test:unit": "npx vitest ./src/tests/unit --run",
     "test:integration": "NODE_ENV=test vitest --run",
     "dev": "nodemon --watch src --exec ts-node src/index.ts",
     "start": "ts-node src/index.ts"

@@ -1,15 +1,6 @@
 import request from 'supertest';
-import {
-  describe,
-  it,
-  expect,
-  beforeEach,
-  afterEach,
-  beforeAll,
-  afterAll,
-} from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import app from '../../index';
-import test, { after } from 'node:test';
 import prisma from '../../prisma';
 
 const roles = [
@@ -42,6 +33,7 @@ for (const { email, password, role } of roles) {
       expect(res.body).toHaveProperty('token');
       token = res.body.token;
     });
+
     it(`Should fetch products list for all products -- ${role}`, async () => {
       const res = await request(app)
         .get('/products/all')
@@ -54,6 +46,7 @@ for (const { email, password, role } of roles) {
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
     });
+
     it(`Should fetch products list with only active products -- ${role}`, async () => {
       const res = await request(app)
         .get('/products/all/active')
@@ -66,6 +59,7 @@ for (const { email, password, role } of roles) {
       expect(res.status).toBe(200);
       expect(res.body.every((p: any) => p.isDeleted)).toBe(false);
     });
+
     it(`Should fetch products list with only deleted products -- ${role}`, async () => {
       const res = await request(app)
         .get('/products/all/deleted')
@@ -78,6 +72,7 @@ for (const { email, password, role } of roles) {
       expect(res.status).toBe(200);
       expect(res.body.every((p: any) => p.isDeleted)).toBe(true);
     });
+
     it('Should create a new product', async () => {
       const res = await request(app)
         .post('/products')
@@ -139,6 +134,49 @@ for (const { email, password, role } of roles) {
         stock: 150,
       });
     });
+
+    it('should show the product detail in the warehouse', async () => {
+      const res = await request(app)
+        .get(`/warehouse/${warehouseId}/products`)
+        .set({ authorization: `Bearer ${token}` });
+
+      if (role === 'user') {
+        expect(res.status).toBe(403);
+        return;
+      }
+
+      expect(res.status).toBe(200);
+      expect(res.body[0]).toHaveProperty('id', warehouseId);
+      expect(res.body[0]).toHaveProperty('name', 'Product Test Warehouse');
+      expect(res.body[0]).toHaveProperty('totalStock', 150);
+      expect(res.body[0]).toHaveProperty('isDeleted', false);
+      expect(res.body[0].productStocks[0]).toHaveProperty(
+        'productId',
+        productId
+      );
+      expect(res.body[0].productStocks[0]).toHaveProperty(
+        'warehouseId',
+        warehouseId
+      );
+      expect(res.body[0].productStocks[0]).toHaveProperty('stock', 150);
+      expect(res.body[0].productStocks[0].products).toHaveProperty(
+        'id',
+        productId
+      );
+      expect(res.body[0].productStocks[0].products).toHaveProperty(
+        'name',
+        'Integration Test Product Updated'
+      );
+      expect(res.body[0].productStocks[0].products).toHaveProperty(
+        'price',
+        150000
+      );
+      expect(res.body[0].productStocks[0].products).toHaveProperty(
+        'isDeleted',
+        false
+      );
+    });
+
     it('Should soft delete the newly created product', async () => {
       const res = await request(app)
         .delete(`/products/${productId}`)
@@ -157,6 +195,24 @@ for (const { email, password, role } of roles) {
       expect(res.body.product.isDeleted).toBe(true);
     });
 
+    it('should show the product detail in the warehouse after the product got deleted', async () => {
+      if (role === 'manager') return;
+      const res = await request(app)
+        .get(`/warehouse/${warehouseId}/products`)
+        .set({ authorization: `Bearer ${token}` });
+
+      if (role === 'user') {
+        expect(res.status).toBe(403);
+        return;
+      }
+
+      expect(res.status).toBe(200);
+      expect(res.body[0]).toHaveProperty('id', warehouseId);
+      expect(res.body[0]).toHaveProperty('name', 'Product Test Warehouse');
+      expect(res.body[0]).toHaveProperty('totalStock', 0);
+      expect(res.body[0]).toHaveProperty('isDeleted', false);
+    });
+
     afterAll(async () => {
       await prisma.productsWarehouse.deleteMany({
         where: {
@@ -165,7 +221,7 @@ for (const { email, password, role } of roles) {
       });
 
       await prisma.products.deleteMany({
-        where: { name: 'Integration Test Product' },
+        where: { name: 'Integration Test Product Updated' },
       });
 
       await prisma.warehouse.deleteMany({
