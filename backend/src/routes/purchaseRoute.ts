@@ -1,14 +1,16 @@
-import express from "express";
-import prisma from "../prisma";
-import moment from "moment-timezone";
-import { Product } from "../models/products";
-import { authorizedRoles } from "../middleware/jwtAuth";
+import express from 'express';
+import prisma from '../prisma';
+import moment from 'moment-timezone';
+import { Product } from '../models/products';
+import { authorizedRoles } from '../middleware/jwtAuth';
+import { formatDateToJakarta } from '../utils/dateFormat';
+import { purchasePostValidation } from '../utils/purchaseValidation';
 
 const router = express.Router();
 
 router.put(
-  "/:id",
-  authorizedRoles("owner", "manager", "user"),
+  '/:id',
+  authorizedRoles('owner', 'manager', 'user'),
   async (req, res) => {
     const { id } = req.params;
     const { value, warehouseId } = req.body;
@@ -16,23 +18,13 @@ router.put(
     const warehouseNum = Number(warehouseId);
 
     try {
-      if (isNaN(valueNum) || valueNum <= 0) {
-        return res
-          .status(400)
-          .json({ error: "value must be a positive number" });
-      }
-      if (isNaN(warehouseNum)) {
-        return res.status(400).json({ error: "warehouseId is required" });
-      }
-
       const product = await prisma.products.findUnique({
         where: { id: Number(id) },
         include: { productStock: true },
       });
 
-      if (!product) return res.status(404).json({ error: "Product not found" });
-      if (product.isDeleted)
-        return res.status(400).json({ error: "Product has been deleted" });
+      const error = purchasePostValidation(valueNum, warehouseNum, product);
+      if (error) return res.status(400).json({ error });
 
       const transaction = await prisma.$transaction(async (tx) => {
         const existingRelation = await tx.productsWarehouse.findUnique({
@@ -79,7 +71,7 @@ router.put(
           data: {
             productId: Number(id),
             warehouseId: warehouseNum,
-            type: "Purchase",
+            type: 'Purchase',
             amount: valueNum,
           },
           include: { products: true, warehouse: true },
@@ -88,22 +80,18 @@ router.put(
       });
       const formattedTransaction = {
         ...transaction,
-        createdAt: moment(transaction.createdAt)
-          .tz("Asia/Jakarta")
-          .format("YYYY-MM-DD HH:mm:ss"),
-        updatedAt: moment(transaction.updatedAt)
-          .tz("Asia/Jakarta")
-          .format("YYYY-MM-DD HH:mm:ss"),
+        createdAt: formatDateToJakarta(transaction.createdAt),
+        updatedAt: formatDateToJakarta(transaction.updatedAt),
       };
       res.json({
-        message: "Sales done successfully",
+        message: 'Purchase done successfully',
         purchase: formattedTransaction,
       });
     } catch (err) {
       console.error(err);
-      return res.status(500).json({ error: "Failed to process purchase" });
+      return res.status(500).json({ error: 'Failed to process purchase' });
     }
-  },
+  }
 );
 
 export default router;
