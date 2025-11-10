@@ -23,7 +23,7 @@ for (const { email, password, role } of roles) {
         },
       });
 
-      // create product with proper relation
+      // create product with proper relationteest
       const product = await prisma.products.create({
         data: {
           name: 'Sales Test Product',
